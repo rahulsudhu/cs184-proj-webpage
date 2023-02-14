@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+<h1 align="middle">Project 1: Rasterizer</h1>
+<h2 align="middle">Rahul Sudharsan, CS184</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>Built a rasterizer which renders SVG images where every polygon is built from triangles. The program performs anti-aliasing through supersampling, level sampling
+using mipmaps and using a bilinear filter for pixel sampling. Textures and colors are computed using barycentric interpolation. There is also support for hierarchical transformations.
+  Favorite part of the project was understanding how mipmaps work and implementing the level sampling. The simplicity of barycentric interpolation implementation was also very interesting. </p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+  <p>Bounding box is computed from the extremal x and y coordinates of the 3 vertex points given. Iterated through bounding box for each pixel and computed the three line equations to determine if it is inside triangle or not.
+    A pixel is drawn when all three line equations are greater than or equal to 0 as well as a check for all three line equations being less than or equal to 0 for points in counter-clockwise order. </p>
+
+<div align="middle">
+<img src="images/task1.png" align="middle" width="800px">
+  <figcaption align="middle">Figure 1.1.</figcaption>
+</div>
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+<p>Antialiasing is implemented through supersampling the triangles which removes sampling artifacts like jaggies. This is implemented by treating the sample buffer as a higher resolution buffer scaling the size by sample rate and
+computing line equations for each supersample and then finally downsampling back to the original resolution  in the resolve to framebuffer function by averaging out the rgb values of the supersamples for each pixel and storing
+  that average into the framebuffer's rgb values. Because anti-aliasing is not needed for points, the rasterize_point function was adjusted to fill all supersample values with the same color.
+  We can see a dramatic change in basic test 4 because the center of the points without supersampling do not compute to be within the triangle edges from the line equations but the supersamples do. Supersampling and averaging down
+  approximates a 1 pixel box filter which attenuates higher frequencies found at skinny triangle edges as shown in Figure 2.1-4. The Nyquist rate is now 1/(2*sample_rate) so there is no aliasing from frequencies below this.</p>
+  <div align="middle">
+    <table style="width=100%">
+      <tr>
+        <td>
+          <img src="images/task2-sr1.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 2.1. Sample rate 1.</figcaption>
+        </td>
+        <td>
+          <img src="images/task2-sr4.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 2.2. Sample rate 4.</figcaption>
+        </td>
+      </tr>
+      <br>
+      <tr>
+        <td>
+          <img src="images/task2-sr9.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 2.3. Sample rate 9.</figcaption>
+        </td>
+        <td>
+          <img src="images/task2-sr16.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 2.4 Sample rate 16.</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+<h3 align="middle">Part 3: Transforms</h3>
+<p> Hierarchical transformations are implemented with 3x3 matrices applied to the homogeneous coordinates of each point. Here we have cubeman falling down. </p>
+  <div align="middle">
+    <img src="images/task3-myrobot.png" align="middle" width="800px">
+    <figcaption align="middle">Figure 3.1.</figcaption>
+  </div>
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+<p>Barycentric coordinates are a coordinate system which specify a point within a triangle (in the 2D case) where the values are weights applied to each vertex.
+  The weights are computed linear algebraically by inverting a 3x3 matrix where columns are the homogeneous coordinates the 3 vertices of the triangle.
+This gives 3 weights to use in interpolating the values given at each vertex into each point within the triangle.
+  In this case it would be rgb color values defined at each vertex. Figure 4.1 shows the interpolation
+  of a red vertex (Color(1,0,0)), green vertex (Color(0,1,0)), and blue vertex (Color(0,0,1)).</p>
+  <div align="middle">
+    <img src="images/task4-bary_tri.png" align="middle" width="800px">
+    <figcaption align="middle">Figure 4.1.</figcaption>
+  </div>
+  <div align="middle">
+    <img src="images/task4-colorwheel.png" align="middle" width="800px">
+    <figcaption align="middle">Figure 4.2.</figcaption>
+  </div>
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+<p> Texture mapping involves converting (x,y) pixel coordinates to the (u,v) texel coordinates and sampling this texel. We are given (u,v) texture coordinates
+  defined at each vertex so we can again use barycentric interpolatation to get the appropriate (u,v) values of each point within a triangle. We then can sample
+  using either bilinear interpolation or nearest neighbor. Nearest neighbor is done by scaling the (u,v) coordinates by the size of the texture map and choosing
+  the closest integer texel coordinates. This would map multiple pixels to one texel which would magnify the texel if the screen space resolution is larger than texture space.
+  Bilinear filtering takes the 4 nearest texels to the (u,v) and interpolates the color value across the two horizontal parts weighted by the  horizontal distance to the u coordinate
+  and then vertically interpolates those two values weighted by relative distance to the v coordinate. The largest difference between the two texture sampling methods
+  would be observed during texture magnification in screen space i.e. when many pixels map to one texel. Bilinear filtering would smooth the transitions between texels in screen space as it uses multiple texels
+  to compute the value, as shown with the red line in the map in the zoom view in Figure 5.1 vs Figure 5.2.
+</p>
+  <div align="middle">
+    <table style="width=100%">
+      <tr>
+        <td>
+          <img src="images/task5-nearsr1.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 5.1. Sample nearest, Sample rate 1.</figcaption>
+        </td>
+        <td>
+          <img src="images/task5-bilisr1.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 5.2. Bilinear, Sample rate 16.</figcaption>
+        </td>
+      </tr>
+      <br>
+      <tr>
+        <td>
+          <img src="images/task5-nearsr16.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 5.3. Sample nearest, Sample rate 16.</figcaption>
+        </td>
+        <td>
+          <img src="images/task5-bilisr16.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 5.4 Bilinear, Sample rate 16.</figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+  <p> Level sampling is used for aliasing issues that arise in minification. This is when multiple texels get mapped to
+  one pixel i.e. screen space resolution is lower than texture space resolution. Mipmaps are used to efficiently store downsampled textures in memory. Sampling the proper location within mipmap level
+    requires computing the pixel footprint of the texture. The footprint area can be estimated with the Jacobian of the (x,y) to (u,v) map which
+  can be approximated by the difference of the (u,v) coordinate (scaled by length and width of the original texture) assigned to the point (x+1,y) and the
+    original scaled texture (u,v) coordinate for (x,y) which approximates Jacobian matrix column (du/dx, dv/dx) and the difference between scaled (u,v) texture coordinate
+   assigned to point (x, y+1) and scaled (u,v) coordinate assigned to original (x,y) which approximates Jacobian matrix column (du/dy,dv/dy). The larger vector norm gives an approximation of
+    the texel footprint. The level is given by taking the logarithm of this value. Nearest level rounds this value to nearest integer and linear sampling lerps between two closest integer
+  levels. </p>
+  <p> Supersampling provides good anti-aliasing at cost of the sample rate times as much memory use and time taken. Bilinear pixel sampling does not require additional memory
+    but it does take 4 times as longer time to compute because of 4 different texel reads, and provides similar anti-aliasing to the highest sample rate used in supersampling. The difference
+    between Figure 6.1 and 6.2 shows bilinear filtering gives more well-defined whiskers which is consistent with the observation from Task 5. Level sampling with the mipmap only requires (4/3) of the original texture size in memory. Level sampling provides better anti-aliasing than
+    just the bilinear filter for pixel sampling because the higher frequencies are filtered out by sampling from a lower resolution texture, as shown in the hair of the lion Figure 6.2 and Figure 6.4. Linear interpolation of mipmaps would double the amount of texel reads but in general
+    just mipmapping takes a shorter time than just applying a bilinear filter with only mipmapping providing slightly better anti-aliasing than only bilinaer filter. Lion screenshots were taken with a zoomed out screen space for observing minification effects. </p>
+
+  <div align="middle">
+    <table style="width=100%">
+      <tr>
+        <td>
+          <img src="images/task6-pnearest-l0.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 6.1. P_NEAREST, L_ZERO.</figcaption>
+        </td>
+        <td>
+          <img src="images/task6-pnearest-lnear.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 6.2. P_NEAREST, L_NEAREST </figcaption>
+        </td>
+      </tr>
+      <br>
+      <tr>
+        <td>
+          <img src="images/task6-pbilinear-l0.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 6.3. P_LINEAR, L_ZERO.</figcaption>
+        </td>
+        <td>
+          <img src="images/task6-pbilinear-lnear.png" align="middle" width="400px"/>
+          <figcaption align="middle">Figure 6.4 P_LINEAR, L_NEAREST </figcaption>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+<a href="https://rahulsudhu.github.io/cs184-proj-webpage/proj1/docs/index.html" >
+</body>
+</html>
