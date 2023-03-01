@@ -1,7 +1,333 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    background-color: white;
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+  kbd {
+    color: #121212;
+  }
+</style>
+<title>CS 184 Mesh Edit</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+<script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
+<h1 align="middle">Project 2: Mesh Edit</h1>
+<h2 align="middle">Rahul Sudharsan</h2>
+
+<br><br>
+
+
+
+<h2 align="middle">Overview</h2>
+<p>
+This program can draw Bezier curves using de Casteljau subdivision and Bezier surfaces with the same subdivision scheme. The program can also perform mesh operations
+    like edge flipping and splitting which are used in the loop subdivision implementation for mesh upsampling. The program also can perform Phong shading by computing vertex normals
+    and interpolating the shading across each triangle. My favorite part of this was understanding exactly why the half edge data structure is useful particularly for
+    mesh operations and how it glues together the individual mesh elements. I enjoyed drawing out and labeling every mesh element and reassigning pointers based on the drawing.
+</p>
+<br>
+
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
+
+<p>
+    Bezier curves can be drawn using de Casteljau's algorithm which recursively interpolates points using parameter t. A Bezier curve is defined by n control points
+    and the curve lies in the convex hull of these points. Each step of de Casteljau's algorithm linearly interpolates a given point
+    with the next and returns a point evaluated weights t and 1-t respectively. Each step outputs k-1 points given k points as input so the base case is when one point remains and this point
+    lies on the Bezier curve. t can then be varied from [0,1] and evaluated to draw the entire curve. Figures 1.2 to 1.7 show each step of de Casteljau's algorithm at t=0.5.
+</p>
+<br>
+
+<!-- Example of including a single figure -->
+<div align="middle">
+  <img src="images/curve.png" align="middle" width="50%">
+    <figcaption align="middle"> Figure 1.1: 6 point Bezier curve </figcaption>
+</div>
+<br>
+
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/step1.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.2: Level 0</figcaption>
+      </td>
+      <td>
+        <img src="images/step2.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.3: Level 1</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/step3.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.4: Level 2</figcaption>
+      </td>
+      <td>
+        <img src="images/step4.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.5: Level 3</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/step5.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.6: Level 4</figcaption>
+      </td>
+      <td>
+        <img src="images/step5curve.png" align="middle" width="400px"/>
+        <figcaption>Figure 1.7: Level 4 with curve</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+
+    <div align="middle">
+        <img src="images/curve2.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 1.8: Different 6 point Bezier curve </figcaption>
+    </div>
+    <div align="middle">
+        <img src="images/curve2difft.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 1.8: Changing t </figcaption>
+    </div>
+<br>
+
+
+<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+<b>
+    <p>
+  The de Casteljau algorithm can be extended to a Bezier surface defined by m x n control points. We can see this where each
+    row contains n control points defining a Bezier curve. This gives m Bezier curves where each curve is evaluated with parameter u
+    giving another Bezier curve defined by m control points which can be evaluated with parameter v, giving us the desired point.
+     We evaluate Bezier curves the same way as Part 2 except with 3D points and use parameters u and v.
+    </p>
+</b>
+
+
+
+
+    <div align="middle">
+        <img src="images/teapot.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 2.1: Teapot drawn by Bezier patches</figcaption>
+    </div>
+<br>
+
+
+<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
+
+<p>
+    Area weighted normals can be computed by summing the neighboring face's normals scaled by the face's area and then taking the unit vector. We need to traverse each face which can be done
+    by taking the twin of the current half edge and then its next halfedge and this gives a new neighboring face of the vertex (this is the same way vertex neighbor traversal is implemented which makes sense
+    because there is a unique vertex for each face). We then must scale the face normal by the area which can be computed with |cross(p1-p,p2-p)|/2 where p1 and p2 are the neighboring vertices corresponding to that face.
+    p1 and p2 are easy to retrieve from the next half-edge and the next-next half-edge and the face normal is a member function of face. We normalize the area weighted vector witht the unit() function.
+    This normal can then be used for Phong shading, which interpolates vertex normals to compute shading as shown in Figure 3.1. Note: on boundary faces (like the ones found in maxplanck.dae), the face normal function makes invalid pointer accesses
+    so instead we add cross(p1-p0,p2-p0)/2 while iterating through faces before normalizing which is still the scaled face normal.
+
+</p>
+<br>
+
+
+    <div align="middle">
+        <table style="width:100%">
+            <tr align="center">
+                <td>
+                    <img src="images/meshteapot.png" align="middle" width="400px"/>
+                    <figcaption>Figure 3.1: Flat shading</figcaption>
+                </td>
+                <td>
+                    <img src="images/meshteapotshade.png" align="middle" width="400px"/>
+                    <figcaption>Figure 3.2: Phong shading</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+<br>
+
+
+<h3 align="middle">Part 4: Edge Flip</h3>
+
+<p>
+    As suggested by the Half-Edge Op Implementation Guide, every relevant mesh element was drawn out and labeled on paper before and after the flip. Every pointer
+    was reassigned carefully to fit the diagram of the flipped edge. Boundary edges cannot be flipped and this can be checked with the isBoundary() function of the edge.
+    There are two triangles involved and every corresponding half-edge (both on inside of the triangles and outside), edge, face, and vertex was carefully reassigned to
+    their appropriate pointers. This was done very carefully and following the guide so luckily there was no debugging necessary.
+
+</p>
+<br>
+
+    <div align="middle">
+        <img src="images/teapotflip.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 4.1: Teapot with edge flips </figcaption>
+    </div>
+<br>
+
+
+<h3 align="middle">Part 5: Edge Split</h3>
+<p>
+    Again, like edge flipping, every mesh element was written out before and after the split. This time we have to create three edges, two new faces and a new vertex. The vertex
+    is located at the midpoint of the splitted edge's vertices. Boundary edges were not flipped. The outside edges were unnecessary to modify with setNeighbors as the old half-edges remain in the same location
+    as opposed to edge flipping which shifts them around. The new vertex as well as the two splitting edges' isNew field is set to true for use in the upsampling section. This
+    was done carefully as well so no debugging was needed.
+
+</p>
+
+
+    <div align="middle">
+        <img src="images/teapotsplit.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 5.1: Teapot with edge splits </figcaption>
+    </div>
+<br>
+
+
+    <div align="middle">
+        <img src="images/teapotflipsplit.png" align="middle" width="50%">
+        <figcaption align="middle"> Figure 5.2: Teapot with edge splits and flips</figcaption>
+    </div>
+<br>
+
+<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
+<b>
+
+</b>
+<p>
+    I followed the recommendation to pre-compute vertex positions before the split and then performing the mesh operations. This gives the following steps for Loop subdivision:
+    <br>1. Iterate through edges and compute the new vertex positions of the new vertex to be added when the edge is split, and store this in the edge's newPosition field.
+   <br> 2. Iterate through vertices and compute the new position of the old vertices and store in newPosition of each old vertex.
+    <br>3. Iterate through every edge and split (only split if both vertices of the edge are old i.e. the edge has not been split yet or else it will infinitely split the new edges that are added). We can also
+    store the edge's newPosition into the new vertex's newPosition field.
+    <br>4. Iterate through every edge again and flip the new edges that connect an old vertex to a new vertex.
+    <br>5. Iterate through every vertex and update its position.
+    <br> We can see Loop subdivision in effect in Figures 6.1 - 6.4. Loop subdivision rounds the sharp corners and edges. This occurs because upsampling acts a filter of higher frequency edges and evenly spreads out the vertices based on the original topology.
+    If we want to preserve these edges we must adjust the mesh topology to have evenly spaced mesh vertices. This samples the edges at a sufficient frequency so that it preserved during the filter. This can be seen with the cow where the ears
+    are preserved during the upsampling process.
+    <br>
+
+
+</p>
+<div align="middle">
+    <table style="width:100%">
+        <tr align="center">
+            <td>
+                <img src="images/cow0upsample.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.1: No upsampling</figcaption>
+            </td>
+            <td>
+                <img src="images/cow1upsample.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.2: upsampled 1 time</figcaption>
+            </td>
+        </tr>
+        <br>
+        <tr align="center">
+            <td>
+                <img src="images/cow2upsample.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.3: upsampled 2 times</figcaption>
+            </td>
+            <td>
+                <img src="images/cow3upsample.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.4: Level 3</figcaption>
+            </td>
+        </tr>
+        <br>
+    </table>
+</div>
+
+
+
+
+<p>
+    We can see in Figures 6.5 - 6.8 that the cube under loop subdivision becomes asymmetric.
+    This occurs because there are only two triangles on each edge so the cube's face is asymmetric. We can add symmetry
+    by splitting the edge on every face of the cube before loop subdivision, which changes the topology.
+    This causes symmetric subdivisions as shown in Figures 6.9 - 6.12:
+</p>
+<br>
+<div align="middle">
+    <table style="width:100%">
+        <tr align="center">
+            <td>
+                <img src="images/asymmcube0.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.5: Cube with no upsampling</figcaption>
+            </td>
+            <td>
+                <img src="images/asymmcube1.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.6: Cube upsampled 1 time </figcaption>
+            </td>
+        </tr>
+        <br>
+        <tr align="center">
+            <td>
+                <img src="images/asymmcube2.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.7: Cube upsampled 2 times</figcaption>
+            </td>
+            <td>
+                <img src="images/asymmcube3.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.8: Cube upsampled 3 times </figcaption>
+            </td>
+        </tr>
+        <br>
+        <tr align="center">
+            <td>
+                <img src="images/symmcube0.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.9: Symmetric cube </figcaption>
+            </td>
+            <td>
+                <img src="images/symmcube1.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.10: Symmetric cube upsampled 1 time</figcaption>
+            </td>
+        </tr>
+        <br>
+        <tr align="center">
+            <td>
+                <img src="images/symmcube2.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.11: Symmetric cube upsampled 2 times</figcaption>
+            </td>
+            <td>
+                <img src="images/symmcube3.png" align="middle" width="400px"/>
+                <figcaption>Figure 6.12: Symmetric cube upsampled 3 time</figcaption>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<a href="https://rahulsudhu.github.io/cs184-proj-webpage/proj2/index.html" > proj2 write up webpage </a>
+
+
+</body>
 </html>
