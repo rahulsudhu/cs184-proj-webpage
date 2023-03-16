@@ -201,7 +201,7 @@ Compare the results between uniform hemisphere sampling and lighting sampling in
   <br> <br>
   Importance sampling sums the reflected radiance at the intersection point from each light source. Light sources are iterated through and for point light sources only one sample is taken and for area lights, we average over ns_area_light samples.
   The emitted light is shot from a random point on the area light toward the intersection point and we have irradiance, angle, and distToLight given by the sample_L function of the area light. A ray is then shot with origin of hit point and direction set by the sample_L function. The max_t is set to be the distance to the light - epsilon so an intersection test
-  can be done to find if the ray hits another object before the light, in which case it is a shadow and not added to the sum. BSDF and cosine values are computed as before except from the direction vector converted to object coordinates. THe reflected radiance then becomes
+  can be done to find if the ray hits another object before the light, in which case it is a shadow and not added to the sum. BSDF and cosine values are computed as before except using the direction vector converted to object coordinates which gives the incoming solid angle. The contribution from the light source given by sample_L is:
   L * bsdf * cos(toward light source ray direction) / pdf.
 </p>
 
@@ -313,11 +313,11 @@ You will probably want to use the instructional machines for the above renders i
 <p>
   Global illumination adds indirect lighting which collects radiance information from path tracing rays by computing the reflected light at each intersection point. This is implemented recursively
   as the reflection equation is recursive as well. This is implemented in the at_least_one_bounce function which in every recursive step we have an intersection point
-  is a inverse ray representing the outgoing ray from that hit point. The function does the following:
+  and an inverse ray representing the outgoing ray from that hit point. The function does the following:
   At the given intersection point the one bounce radiance is computed. Then a coin is flipped with heads probability 0.35 which
-  terminates and returns this radiance if flipped heads or if the max ray depth is reached (checks if ray depth == 1 since depth is decremented with each recursive call). If tails the algorithm continues and computes the adds a uniform hemisphere sample of
-  solid angle by shooting the incoming ray (with depth = outgoing ray depth - 1, origin = hit point, direction = o2w * solid angle) from that hit point and computes the radiance reflected from the next intersection point that this ray hits with a recursive call with parameters being the
-  incoming ray and the next intersection point. The reflected radiance is computed as : radiance from incoming ray * bsdf * cos(incoming ray solid angle) / probability of choosing the incoming solid angle / continuance probability of the ray (=0.65).
+  terminates and returns this radiance if flipped heads or if the max ray depth is reached (checks if ray depth == 1 since depth is decremented with each recursive call). If tails the algorithm continues and samples a solid angle and shoots the incoming ray (with depth = outgoing ray depth - 1, origin = hit point, direction = o2w * solid angle) 
+  from that hit point and if there is intersectino it computes the radiance reflected from the next intersection point that this ray hits with a recursive call with parameters being the
+  incoming ray and the next intersection point. The reflected radiance from that next intersection point is computed as : radiance from incoming ray * bsdf * cos(incoming ray solid angle) / probability of choosing the incoming solid angle / continuance probability of the ray (=0.65).
   This is added to the total radiance (which includes the one-bounce-radiance computed earlier) and this value is returned. If there is no intersection point then only the one bounce radiance is returned.
 </p>
 <br>
