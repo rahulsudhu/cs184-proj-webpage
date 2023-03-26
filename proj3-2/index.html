@@ -1,7 +1,171 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>  
+    div.padded {  
+      padding-top: 0px;  
+      padding-right: 100px;  
+      padding-bottom: 0.25in;  
+      padding-left: 100px;  
+    }  
+  </style> 
+<title>Project 3-2 |  CS 184</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rel="stylesheet" type="text/css" href="style.css" media="screen" />
+</head>
+<body>
+<br />
+<h1 align="middle">Assignment 3-2: Additional Features to PathTracer</h1>
+    <h2 align="middle">Rahul Sudharsan</h2>
+<h2 align="middle"> <a href="https://rahulsudhu.github.io/cs184-proj-webpage/proj3-2/index.html">Webpage </a></h2>
+
+    <div class="padded">
+        <h3 align="middle"> Overview </h3>
+        <p>Parts 1 and 4 are implemented in this project.
+            The pathtracer program now has the ability to render reflective and refractive material. This allows for glass and mirror elements to be rendered.
+            There is also the ability to simulate a lens's depth of field given a chosen aperture and focal distance. I enjoyed implementing part 4 and being able to appreciate how effective the thin lens model
+            is at simulating a virtual camera lens. I also now have a better understanding of the reflective and refractive laws that guide the lights in our reality.
+            </p>
+
+        <h3 align="middle">Part 1. Mirror and Glass Materials</h3>
+        <p> Perfect specular reflection is implemented with the equation: wi = -wo + 2(dot(wo, n)n, which follows the law of the angle of incidence being equal to the angle of reflection. This gives the ability to render mirror/chrome objects with its sample_f function having wi deterministically chosen
+            so the corresponding pdf is set to 1. The brdf term is divided by abs_cos(wi) to cancel out the diffuse falloff since this is the case of perfect specular reflection. The refraction angle was computed using Snell's Law of refraction
+            for the glass material (Note: it was assumed one of the materials being refracted toward is air which has and index of refraction as 1 with the other index of refraction given by parameter ior). Both reflection and refraction are needed
+            in the case of glass material and Schlick's Approximation of the Fresnel factor gives the ratio of reflected light to refracted light and is used to determine the probability of reflecting the light versus refracting
+            given an outgoing angle in the sample_f function. There was some debugging needed here because I used cos_theta instead of abs_cos_theta which throws off the ratio to favor only reflecting light causing the glass sphere to be black.
+            The pdf is set to the corresponding probability of either reflecting or refracting and the brdf again is divided by abs_cos(wi) to cancel out the diffuse falloff term when factored into the at_least_one_bounce radiance.
+        </p>
+        <p><b>
+            Show a sequence of six images of scene `CBspheres.dae` rendered with `max_ray_depth` set to 0, 1, 2, 3, 4, 5, and 100. The other settings should be at least 64 samples per pixel and 4 samples per light. Make sure to include all screenshots.
+        </b></p>
+        <div align="middle">
+            <table style="width:100%">
+                <tr>
+                    <td>
+                        <img src="images/CBSpheres_d0.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 0, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBSpheres_d1.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 1, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBSpheres_d2.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 2, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBSpheres_d3.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 3, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                </tr>
+                <br>
+                <tr>
+                    <td>
+                        <img src="images/CBSpheres_d4.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 4, 4 light samples, 64 samples per pixel </figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBSpheres_d5.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 5, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBSpheres_d100.png" align="middle" width="400px"/>
+                        <figcaption>CBspheres with max ray depth 100, 4 light samples, 64 samples per pixel</figcaption>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <br>
+        <p><b>
+            Point out the new multibounce effects that appear in each image.
+        </b></p>
+        <p>
+            At zero bounces we can only see emitted light. At one bounce, we have the direct illumination of the walls and wherever the light hits the sphere. At two bounces, we have some reflection of the walls and the other sphere
+            on the left sphere, as well as refraction of the direct illumination on the right sphere. At three bounces, we see refraction of the light bounced off the walls but the reflection of the refracted sphere remains black. At four bounces we see the reflection of the refracted sphere on the left sphere. We
+            also see light reflected to the blue wall from the reflected sphere to the refracted sphere to the wall in four bounces. After this, the image gets progressively brighter with more ray depth.
+        <br>
+        <p><b>
+            Explain how these bounce numbers relate to the particular effects that appear. Make sure to include all screenshots.
+        </b></p>
+        <p>
+            Reflection requires two bounces because it must first hit the surface and then be reflected off and then hit the light for it to be shown in the image. Glass has both reflection and refraction and we can see in the second image the reflection.
+            Refracting the wall colors requires three bounces because the inverse ray must bounce off the walls
+            and then enter the sphere and then exit and then hit the light. We see the refracted sphere reflected in the second at four bounces because it takes three for the refraction and then one more to reflect off the mirror sphere and then hit the light. The light on the wall requires reflecting off
+            the mirror sphere into the glass sphere and then hitting the wall.
+        </p>
+        <br>
+
+        <h3 align="middle">Part 4. Depth of Field</h3>
+        <p>
+            Based on Gauss's ray diagram, camera rays for the thin lens model are generated by choosing a random point pLens on the lens disk (with center at (0,0,0) in camera space) and shooting a ray from that point toward a focus point. Let pFilm <br> (-X,-Y,1) be the point on the image plane that
+            we want to compute the radiance for. The intersecting point on the focal plane pFocus will be (-X,-Y,1) * -focalDistance by the plane equation. The ray direction in camera space is then pFocus - pLens. This ray is converted to world coordinates as well as the point on the lens and added to camera position
+            to get the world coordinate of pLens relative to the camera. This lets points at focalDistance away from the lens appear sharp and blurring out of focus parts of the scene.
+        </p>
+        <p><b>
+            In a few sentences, explain the differences between a pinhole camera model and a thin-lens camera model.
+        </b></p>
+        <p>
+            The thin lens model samples rays from different locations of a flat disk that are shot toward a focus point which is determined by focalDistance and the point on the image plane. These rays converge toward the sensor / image plane pixel giving the total radiance
+            for the pixel. The pinhole camera model can be interpreted as a thin lens with a disk radius of 0 as it traces rays that go through point (0,0,0) in camera coordinates. The pinhole camera model has a depth of field encapsulating the entire scene as opposed to thin lines
+            which blurs parts of the image not in focus. Larger lens radius gives a shallower depth of field and smaller lens radius gives a wider depth of field.
+        </p>
+        <br>
+        <p><b>
+            Show a "focus stack" where you focus at 4 visibly different depths through a scene. Make sure to include all screenshots.
+        </b></p>
+        <div align="middle">
+            <table style="width:100%">
+                <tr>
+                    <td>
+                        <img src="images/CBdragon_focus0.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon with focus set to back of dragon</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_focus1.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon with focus set to front of dragon</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_focus2.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon with focus set to back wall</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_focus3.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon with focus set to tail of dragon</figcaption>
+                    </td>
+            </table>
+        </div>
+
+        <br>
+        <p><b>
+            Show a sequence of 4 pictures with visibly different aperture sizes, all focused at the same point in a scene. Make sure to include all screenshots.
+        </b></p>
+        <p>
+            We see the depth of field decrease as lens radius increases as expected.
+        </p>
+        <div align="middle">
+            <table style="width:100%">
+                <tr>
+                    <td>
+                        <img src="images/CBdragon_radius1.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon Focal Distance =4.5, lens radius = 1.0</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_radius2.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon Focal Distance =4.5, lens radius = 2.0</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_radius3.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon Focal Distance =4.5, lens radius = 3.0</figcaption>
+                    </td>
+                    <td>
+                        <img src="images/CBdragon_radius4.png" align="middle" width="400px"/>
+                        <figcaption>CBdragon Focal Distance =4.5, lens radius = 4.0</figcaption>
+                    </td>
+            </table>
+        </div>
+        <br>
+
+    </div>
+</body>
 </html>
+
