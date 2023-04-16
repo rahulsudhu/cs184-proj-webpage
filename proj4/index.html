@@ -1,7 +1,309 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 4 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Cloth Sim</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+<h1 align="middle">Project 4: Cloth Simulator</h1>
+<h2 align="middle">Rahul Sudharsan</h2>
+<a href="https://rahulsudhu.github.io/cs184-proj-webpage/proj4/index.html"> Project Webpage</a>
+
+<br><br>
+
+<div>
+
+    <h2 align="middle">Overview</h2>
+    <p>This project implements a physical simulation of cloth with its behavior approximated by a a mass-spring system with motion computed
+    using Verlet integration. Shaders are implemented for the cloth which can compute lighting, textures, and reflections on the GPU. This project
+    was very fun to implement even though it had quite a lot of moving parts (literally) to debug. My favorite part was the implementation of the shaders
+    as this was my first exposure to them and because shaders will be a big part in my final project.  </p>
+
+    <h2 align="middle">Part I: Masses and springs</h2>
+    <p> Cloth is modeled with mass-spring system with vertical and horizontal structural springs, diagonal shearing springs, and bending springs which connect
+        point masses that are 2 structural springs away. This models the behavior of cloth, preserving its structural properties and behavior. Every internal point
+        mass is connected to 8 different springs. The rest length is computed for each spring to be the distance between the two points it connects for use in Hooke's Law.
+    </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/pinned2q1.png" align="middle" width="400px"/>
+                    <figcaption>pinned2 wireframe with all three spring types</figcaption>
+                </td>
+                <td>
+                    <img src="images/pinned2noshearq1.png" align="middle" width="400px"/>
+                    <figcaption>pinned2 wireframe with no shearing springs</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/pinned2shearq1.png" align="middle" width="400px"/>
+                    <figcaption>pinned2 wireframe with only shearing springs</figcaption>
+                </td>
+
+        </table>
+    </div>
+    <h2 align="middle">Part II: Simulation via numerical integration </h2>
+    <p> Verlet Integration is used to update the positions of the point masses using the total forces and a time step. Every point mass's external forces are
+        computed by multiplying the acceleration with its mass. Spring forces are then computed using Hooke's Law to determine the correctional spring force using
+         the current positions of the point masses and the spring constant. A force in the direction of the opposing point mass is applied to each point mass is added.
+    After all these forces have been computed the position is set using Verlet integration with a damping factor applied to the velocity to simulate the loss of kinetic
+    energy and bring the cloth to rest. To preserve the cloth structure, a correction of the position is directly applied to each point mass to keep the spring length
+        less than 1.1 * rest length. There was some debugging required here since I was not checking pinned status correctly resulting in the pinned part slowly being dragged
+        as the cloth fell. We can observe the effect of three parameters on the cloth : spring constant, density, and damping.
+    </p>
+    <p align="middle"> Spring Constant</p>
+    <p> Increasing the spring constant gives a more rigid cloth as seen in the decreasing curvature of the 2 pin cloth. This is expected since a higher correctional force
+    is exerted with higher spring constant maintaining cloth structure. </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/cloth500ksq2.png" align="middle" width="400px"/>
+                    <figcaption>ks = 500</figcaption>
+                </td>
+                <td>
+                    <img src="images/cloth5000ksq2.png" align="middle" width="400px"/>
+                    <figcaption>ks = 5000</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/cloth50000ksq2.png" align="middle" width="400px"/>
+                    <figcaption>ks = 50000</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+        <p align="middle"> Density </p>
+        <p> Increasing density sinks the cloth further in the 2 pinned case which is expected as denser material deforms more since greater point mass increases the gravitational force
+        which resists the spring corrective force at a greater magnitude. </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/cloth1p5dq2.png" align="middle" width="400px"/>
+                    <figcaption>Density = 1.5</figcaption>
+                </td>
+                <td>
+                    <img src="images/cloth15dq2.png" align="middle" width="400px"/>
+                    <figcaption>Density = 15</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/cloth15dq2.png" align="middle" width="400px"/>
+                    <figcaption>Density = 150</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+        <p align="middle"> Damping </p>
+        <p> Less damping causes the cloth to oscillate and not come to rest quicker. We can see with 0% damping the cloth swings all the back in the 2 pinned
+        case. With higher damping the cloth moves slower, which makes sense because the damping factor kills the momentum of the cloth. Higher damping also comes to rest with fewer oscillations which
+        makes sense because there is less momentum of the cloth to bring to 0. </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/clothfulldamp.png" align="middle" width="400px"/>
+                    <figcaption>Damping = 1</figcaption>
+                </td>
+                <td>
+                    <img src="images/cloth0dampq2.png" align="middle" width="400px"/>
+                    <figcaption>Damping = 0</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <p align="middle">4 Pin Cloth </p>
+    <img src="images/pinned4q2.png" align="center" width="400px"/>
+    <figcaption> pinned4 cloth with default parameters </figcaption>
+    <h2 align="middle">Part III: Handling collisions with other objects </h2>
+    <p> The spherical collision test is performed for each point mass by checking if the distance from the point to the origin is within the radius of the sphere. If so
+    the position of the point mass is corrected to be a distance of "friction" away from the tangent point in the direction of the last position.
+    Planar collision tests are done by computing the plane equation on the last position and the current position and checking if the signs disagree which means the
+    cloth has crossed the plane. Tangent point is computed by The position is corrected to be a distance of friction * SURFACE_OFFSET away from the intersection point. </p>
+    <p align="center"> Sphere Collision</p>
+    <p> We see that with lower spring constant comes a droopier cloth as expected and higher spring constant brings rigid cloth. </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/clothsphere500ksq3.png" align="middle" width="400px"/>
+                    <figcaption>ks = 500</figcaption>
+                </td>
+                <td>
+                    <img src="images/clothsphere5000ksq3.png" align="middle" width="400px"/>
+                    <figcaption>ks = 5000</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/clothsphere50000ksq3.png" align="middle" width="400px"/>
+                    <figcaption>Damping = 1</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <p align="middle"> Plane Collision </p>
+    <img src="images/clothplaneq3.png" align="middle" width="400px"/>
+    <figcaption>Texture shaded plane collision </figcaption>
+    <h2 align="middle">Part IV: Handling self-collisions </h2>
+    <p> To find instances of self collision efficiently, we can place each point mass into the integer coordinates of a bounding box. The data structure that
+        holds this will be a hash map mapping the integer coordinates of a point's corresponding bounding box to a list of the contained point masses. This
+        is done by floor dividing the point mass coordinates to get (x,y,z) and using the key (x * 31.) + (y * 37.) + (z * 41.) for the hashmap. Every point is checked
+        to be within 2 * thickness away from its boxmates and if so, a correction is added of 2 * thickness. The total corrections are averaged over the number of boxmates
+        and simulation steps and the position is directly adjusted. This causes the cloth to fold over itself as shown below.
+    </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/selfcollisionstage1.png" align="middle" width="400px"/>
+                </td>
+                <td>
+                    <img src="images/selfcollisionstage2.png" align="middle" width="400px"/>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/selfcollisionstage3.png" align="middle" width="400px"/>
+                </td>
+                <td>
+                    <img src="images/selfcollisionstage4.png" align="middle" width="400px"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <p> Decreasing density or increasing the spring constant causes larger folds and more adherence to the rectangular
+    shape of the cloth. This makes sense because the spring force has more of an effect so this preserves the structure of the cloth
+    as it folds on itself. </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/selfcollisionstage1.png" align="middle" width="400px"/>
+                    <figcaption>density = 1.5</figcaption>
+                </td>
+                <td>
+                    <img src="images/selfcollisionstage2.png" align="middle" width="400px"/>
+                    <figcaption>ks = 50000</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <h2 align="middle">Part V: Shaders </h2>
+        <p> Shaders execute parts of the graphics pipeline using the GPU, computing values associated with vertices in the context of a triangle rasterization in the vertex shader and pixels in the fragment shader.
+            In the case of vertex shaders 3D vertex coordinates are input into the vertex shader and the screen space coordinates are computed with or without additional geometry processing . UV texture coordinates as well
+        as vertex normals are set which are barycentrically interpolated for use of the fragment shader. The fragment shader computes the color of the pixel using the values passed
+        in by the vertex shader. </p>
+        <p align="middle"> Blinn-Phong</p>
+        <p>Blinn Phong reflection model sums specular, difuse, and ambient light.Specular lighting uses the half vector which lies between the
+        direction to the light source and the direction to the camera position to compute the amount of light reflected directly toward the camera. Diffuse lighting is camera position
+        agnostic and computes a evenly spread out light scattering. Both diffuse and specular lighting use the 1/r^2 light intensity falloff where r is the distance from
+        the light to the position. The ambient light is a constant value that is added to account for other lights in the environment. </p>
+        <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/phongambientq5.png" align="middle" width="400px"/>
+                    <figcaption>Ambient </figcaption>
+                </td>
+                <td>
+                    <img src="images/phongdiffuseq5.png" align="middle" width="400px"/>
+                    <figcaption>Diffuse </figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/phongspecularq5.png" align="middle" width="400px"/>
+                    <figcaption>Specular</figcaption>
+                </td>
+                <td>
+                    <img src="images/phongtotalq5.png" align="middle" width="400px"/>
+                    <figcaption>Phong </figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <p align="middle"> Texture </p>
+    <img src="images/clothtexture.png" align="middle" width="400px"/>
+    <figcaption>Mona Lisa Texture </figcaption>
+    <p align="middle"> Bump and Displacement</p>
+    <p> Bump mapping preserves the geometry of the mesh and uses the normals of the height displacement to compute the shading which gives the effect of lighting on the texture. Displacement mapping transforms the geometry according sampling the height map derived
+        from the texture. We can see that lower sampling rate leads to more angular looking sphere in displacement mapping which makes sense considering the geometry processing of the
+    vertex shader must interpolate height coordinates with fewer points. Higher sample rate accounts for these higher frequency texture data. 128x128 is a good enough
+    latitude-longitude sampling rate for this texture, evident by the more spherical-looking sphere.
+    </p>
+    <div align="middle">
+        <table style="width:100%">
+            <tr>
+                <td>
+                    <img src="images/spherebump16.png" align="middle" width="400px"/>
+                    <figcaption>Sphere, Bump, 16x16 </figcaption>
+                </td>
+                <td>
+                    <img src="images/spheredisp16.png" align="middle" width="400px"/>
+                    <figcaption>Sphere, Displacement, 16x16</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/spherebump128.png" align="middle" width="400px"/>
+                    <figcaption>Sphere, Bump, 128x128</figcaption>
+                </td>
+                <td>
+                    <img src="images/spheredisp128.png" align="middle" width="400px"/>
+                    <figcaption>Sphere, Displacement, 128x128 </figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/clothbump16.png" align="middle" width="400px"/>
+                    <figcaption>Cloth Collision, Bump, 16x16 </figcaption>
+                </td>
+                <td>
+                    <img src="images/clothdisp16.png" align="middle" width="400px"/>
+                    <figcaption>Cloth Collision, Displacement, 16x16</figcaption>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="images/clothbump128.png" align="middle" width="400px"/>
+                    <figcaption>Cloth Collision, Bump, 128x128</figcaption>
+                </td>
+                <td>
+                    <img src="images/clothdisp128.png" align="middle" width="400px"/>
+                    <figcaption>Cloth Collision, Displacement, 128x128</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    <p align="middle"> Mirror </p>
+    <img src="images/mirrorsphere.png" align="middle" width="400px"/>
+    <figcaption>Mirror, Sphere </figcaption>
+    <img src="images/mirrorcloth.png" align="middle" width="400px"/>
+    <figcaption>Mirror, Cloth Collision </figcaption>
+</body>
 </html>
